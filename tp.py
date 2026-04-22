@@ -17,11 +17,17 @@ def leer_csv(ruta):
 
 
 def limpiar_y_transformar(puntos, idx_p1, idx_p2):
+    """
+    Transforma puntos en píxeles a metros.
+    
+    El puente cubre 20 metros (de 0 a 20 m), medido entre los apoyos.
+    Se usan los puntos en idx_p1 e idx_p2 como referencias para calibrar.
+    """
     p1_x, p1_y = puntos[idx_p1]
     p2_x, p2_y = puntos[idx_p2]
 
     distancia_px = math.sqrt((p2_x - p1_x)**2 + (p2_y - p1_y)**2)
-    factor = 20.0 / distancia_px
+    factor = 20.0 / distancia_px  # 20 metros entre apoyos del puente
 
     puntos_metros = []
 
@@ -85,104 +91,79 @@ def construir_p1(puntos_metros):
 def cuadratica_neg(x, a, b, c):
     return a * x**2 + b * x + c
 
-# def construir_p2(puntos_metros):
-#     x2 = np.array([p[0] for p in puntos_metros])
-#     y2 = np.array([p[1] for p in puntos_metros])
-# 
-#     # Ajuste Tramo 1 (P1 a P8 -> índices 0 a 7)
-#     popt_m1_t1, _ = curve_fit(cuadratica_neg, x2[:8], y2[:8])
-# 
-#     # Ajuste Tramo 2 (P8 a P18 -> índices 7 a 17)
-#     popt_m1_t2, _ = curve_fit(cuadratica_neg, x2[7:18], y2[7:18])
-# 
-#     # Predicción Modelo 1
-#     pred_m1 = np.concatenate([
-#         cuadratica_neg(x2[:8], *popt_m1_t1),
-#         cuadratica_neg(x2[8:18], *popt_m1_t2)
-#     ])
-# 
-#     # Ajuste una sola cuadrática para el cauce principal
-#     popt_m2, _ = curve_fit(cuadratica_neg, x2[:18], y2[:18])
-# 
-#     # Predicción Modelo 2
-#     pred_m2 = cuadratica_neg(x2[:18], *popt_m2)
-# 
-#     rmse_m1 = np.sqrt(mean_squared_error(y2[:18], pred_m1))
-#     rmse_m2 = np.sqrt(mean_squared_error(y2[:18], pred_m2))
-# 
-#     print(f"Error Modelo 1 (2 tramos): {rmse_m1:.4f}")
-#     print(f"Error Modelo 2 (1 tramo): {rmse_m2:.4f}")
-# 
-#     # 1. Identificamos el punto de quiebre (P8) en metros para redondearlo
-#     X_CORTE = 15.0 # Valor redondo sugerido según tu gráfico anterior
-# 
-#     def f(x):
-#         if x <= X_CORTE:
-#             # Primera parábola (Tramo P1 a P8)
-#             return float(cuadratica_neg(x, *popt_m1_t1))
-#         elif x <= 21.0:
-#             # Segunda parábola (Tramo P8 a P18)como
-#             # Cubrimos hasta el metro 21 para que Simpson cierre bien
-#             return float(cuadratica_neg(x, *popt_m1_t2))
-#         else:
-#             return 0.0
-#     return f, x2, y2, X_CORTE, rmse_m2, rmse_m1
-# La función partida final del Puente 2 usará el modelo con menor RMSE.
+def construir_p2(puntos_metros):
+    """
+    Construye la función partida para el Puente 2.
+    
+    Solo considera puntos en [0, 20] m porque:
+    - El puente tiene una luz de 20 m (especificado en el enunciado)
+    - Dominio de integración con Simpson 3/8: [0, 20]
+    - Puntos fuera de este rango están fuera del puente
+    
+    Compara dos modelos:
+    - Modelo A: 2 cuadráticas + 1 recta lineal
+    - Modelo B: 1 cuadrática + 1 recta lineal
+    
+    Elige el de menor RMSE.
+    """
+    x2 = np.array([p[0] for p in puntos_metros])
+    y2 = np.array([p[1] for p in puntos_metros])
+    
+    # Identificamos puntos clave según tu tabla
+    # x=0 (P1), x=14.59 (P8), x=17.12 (P9), x=20.0 (P10/Apoyo)
+    idx_p8 = 7
+    idx_p9 = 8
+    x_p8 = x2[idx_p8]
+    x_p9 = x2[idx_p9]
+    y_p9 = y2[idx_p9]
 
-# def construir_p2(puntos_metros):
-#     x2 = np.array([p[0] for p in puntos_metros])
-#     y2 = np.array([p[1] for p in puntos_metros])
-#     
-#     # Identificamos puntos clave según tu tabla
-#     # x=0 (P1), x=14.59 (P8), x=17.12 (P9), x=20.0 (P10/Apoyo)
-#     idx_p8 = 7
-#     idx_p9 = 8
-#     x_p8 = x2[idx_p8]
-#     x_p9 = x2[idx_p9]
-#     y_p9 = y2[idx_p9]
-# 
-#     # --- MODELO A: 2 Cuadráticas + 1 Lineal ---
-#     popt_a1, _ = curve_fit(cuadratica_neg, x2[:8], y2[:8])      # P1 a P8
-#     popt_a2, _ = curve_fit(cuadratica_neg, x2[7:18], y2[7:18]) # P8 a P18
-#     
-#     def modelo_a(x):
-#         if x <= x_p8:
-#             return float(cuadratica_neg(x, *popt_a1))
-#         elif x <= x_p9:
-#             return float(cuadratica_neg(x, *popt_a2))
-#         else:
-#             # FUNCIÓN LINEAL INTERPOLADA: une P9 con el apoyo P2 (20, 0)
-#             pendiente = (0 - y_p9) / (20.0 - x_p9)
-#             return float(y_p9 + pendiente * (x - x_p9))
-# 
-#     # --- MODELO B: 1 Cuadrática + 1 Lineal ---
-#     popt_b, _ = curve_fit(cuadratica_neg, x2[:18], y2[:18]) # Una sola para todo
-#     
-#     def modelo_b(x):
-#         if x <= x_p9:
-#             return float(cuadratica_neg(x, *popt_b))
-#         else:
-#             pendiente = (0 - y_p9) / (20.0 - x_p9)
-#             return float(y_p9 + pendiente * (x - x_p9))
-# 
-#     # --- CÁLCULO DE ERRORES (Punto c.ii.3) ---
-#     # Evaluamos solo en los puntos dentro del puente (x <= 20)
-#     x_eval = x2[x2 <= 20]
-#     y_eval = y2[x2 <= 20]
-#     
-#     rmse_a = np.sqrt(mean_squared_error(y_eval, [modelo_a(xi) for xi in x_eval]))
-#     rmse_b = np.sqrt(mean_squared_error(y_eval, [modelo_b(xi) for xi in x_eval]))
-#     
-#     print(f"RMSE Modelo A (2 cuadráticas): {rmse_a:.4f}")
-#     print(f"RMSE Modelo B (1 cuadrática): {rmse_b:.4f}")
-# 
-#     # Elegimos el de menor error
-#     if rmse_a < rmse_b:
-#         print("Ganador: Modelo A")
-#         return modelo_a, x2, y2, x_p8, rmse_a, rmse_b
-#     else:
-#         print("Ganador: Modelo B")
-#         return modelo_b, x2, y2, x_p8, rmse_a, rmse_b
+    # --- MODELO A: 2 Cuadráticas + 1 Lineal ---
+    popt_a1, _ = curve_fit(cuadratica_neg, x2[:8], y2[:8])      # P1 a P8
+    popt_a2, _ = curve_fit(cuadratica_neg, x2[7:18], y2[7:18]) # P8 a P18
+    
+    def modelo_a(x):
+        if x <= x_p8:
+            return float(cuadratica_neg(x, *popt_a1))
+        elif x <= x_p9:
+            return float(cuadratica_neg(x, *popt_a2))
+        else:
+            # FUNCIÓN LINEAL INTERPOLADA: une P9 con el apoyo P2 (20, 0)
+            pendiente = (0 - y_p9) / (20.0 - x_p9)
+            return float(y_p9 + pendiente * (x - x_p9))
+
+    # --- MODELO B: 1 Cuadrática + 1 Lineal ---
+    popt_b, _ = curve_fit(cuadratica_neg, x2[:18], y2[:18]) # Una sola para todo
+    
+    def modelo_b(x):
+        if x <= x_p9:
+            return float(cuadratica_neg(x, *popt_b))
+        else:
+            pendiente = (0 - y_p9) / (20.0 - x_p9)
+            return float(y_p9 + pendiente * (x - x_p9))
+
+    # --- CÁLCULO DE ERRORES (Punto c.ii.3) ---
+    # Evaluamos solo en los puntos dentro del puente (x <= 20)
+    mask_puente = x2 <= 20
+    x_eval = x2[mask_puente]
+    y_eval = y2[mask_puente]
+    
+    rmse_a = np.sqrt(mean_squared_error(y_eval, [modelo_a(xi) for xi in x_eval]))
+    rmse_b = np.sqrt(mean_squared_error(y_eval, [modelo_b(xi) for xi in x_eval]))
+    
+    print(f"RMSE Modelo A (2 cuadráticas): {rmse_a:.4f}")
+    print(f"RMSE Modelo B (1 cuadrática): {rmse_b:.4f}")
+
+    # Elegimos el de menor error
+    # Devolvemos SOLO los puntos dentro del puente [0, 20]
+    x2_filtrado = x2[mask_puente]
+    y2_filtrado = y2[mask_puente]
+    
+    if rmse_a < rmse_b:
+        print("Ganador: Modelo A")
+        return modelo_a, x2_filtrado, y2_filtrado, x_p8, rmse_a, rmse_b
+    else:
+        print("Ganador: Modelo B")
+        return modelo_b, x2_filtrado, y2_filtrado, x_p8, rmse_a, rmse_b
 
 def simpson_38_final(f, limite_b, h=1):
     n = int(limite_b / h) # n = 21 si limite_b es 21
