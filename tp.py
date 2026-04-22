@@ -129,60 +129,60 @@ def cuadratica_neg(x, a, b, c):
 #     return f, x2, y2, X_CORTE, rmse_m2, rmse_m1
 # La función partida final del Puente 2 usará el modelo con menor RMSE.
 
-def construir_p2(puntos_metros):
-    x2 = np.array([p[0] for p in puntos_metros])
-    y2 = np.array([p[1] for p in puntos_metros])
-    
-    # Identificamos puntos clave según tu tabla
-    # x=0 (P1), x=14.59 (P8), x=17.12 (P9), x=20.0 (P10/Apoyo)
-    idx_p8 = 7
-    idx_p9 = 8
-    x_p8 = x2[idx_p8]
-    x_p9 = x2[idx_p9]
-    y_p9 = y2[idx_p9]
-
-    # --- MODELO A: 2 Cuadráticas + 1 Lineal ---
-    popt_a1, _ = curve_fit(cuadratica_neg, x2[:8], y2[:8])      # P1 a P8
-    popt_a2, _ = curve_fit(cuadratica_neg, x2[7:18], y2[7:18]) # P8 a P18
-    
-    def modelo_a(x):
-        if x <= x_p8:
-            return float(cuadratica_neg(x, *popt_a1))
-        elif x <= x_p9:
-            return float(cuadratica_neg(x, *popt_a2))
-        else:
-            # FUNCIÓN LINEAL INTERPOLADA: une P9 con el apoyo P2 (20, 0)
-            pendiente = (0 - y_p9) / (20.0 - x_p9)
-            return float(y_p9 + pendiente * (x - x_p9))
-
-    # --- MODELO B: 1 Cuadrática + 1 Lineal ---
-    popt_b, _ = curve_fit(cuadratica_neg, x2[:18], y2[:18]) # Una sola para todo
-    
-    def modelo_b(x):
-        if x <= x_p9:
-            return float(cuadratica_neg(x, *popt_b))
-        else:
-            pendiente = (0 - y_p9) / (20.0 - x_p9)
-            return float(y_p9 + pendiente * (x - x_p9))
-
-    # --- CÁLCULO DE ERRORES (Punto c.ii.3) ---
-    # Evaluamos solo en los puntos dentro del puente (x <= 20)
-    x_eval = x2[x2 <= 20]
-    y_eval = y2[x2 <= 20]
-    
-    rmse_a = np.sqrt(mean_squared_error(y_eval, [modelo_a(xi) for xi in x_eval]))
-    rmse_b = np.sqrt(mean_squared_error(y_eval, [modelo_b(xi) for xi in x_eval]))
-    
-    print(f"RMSE Modelo A (2 cuadráticas): {rmse_a:.4f}")
-    print(f"RMSE Modelo B (1 cuadrática): {rmse_b:.4f}")
-
-    # Elegimos el de menor error
-    if rmse_a < rmse_b:
-        print("Ganador: Modelo A")
-        return modelo_a, x2, y2, x_p8, rmse_a, rmse_b
-    else:
-        print("Ganador: Modelo B")
-        return modelo_b, x2, y2, x_p8, rmse_a, rmse_b
+# def construir_p2(puntos_metros):
+#     x2 = np.array([p[0] for p in puntos_metros])
+#     y2 = np.array([p[1] for p in puntos_metros])
+#     
+#     # Identificamos puntos clave según tu tabla
+#     # x=0 (P1), x=14.59 (P8), x=17.12 (P9), x=20.0 (P10/Apoyo)
+#     idx_p8 = 7
+#     idx_p9 = 8
+#     x_p8 = x2[idx_p8]
+#     x_p9 = x2[idx_p9]
+#     y_p9 = y2[idx_p9]
+# 
+#     # --- MODELO A: 2 Cuadráticas + 1 Lineal ---
+#     popt_a1, _ = curve_fit(cuadratica_neg, x2[:8], y2[:8])      # P1 a P8
+#     popt_a2, _ = curve_fit(cuadratica_neg, x2[7:18], y2[7:18]) # P8 a P18
+#     
+#     def modelo_a(x):
+#         if x <= x_p8:
+#             return float(cuadratica_neg(x, *popt_a1))
+#         elif x <= x_p9:
+#             return float(cuadratica_neg(x, *popt_a2))
+#         else:
+#             # FUNCIÓN LINEAL INTERPOLADA: une P9 con el apoyo P2 (20, 0)
+#             pendiente = (0 - y_p9) / (20.0 - x_p9)
+#             return float(y_p9 + pendiente * (x - x_p9))
+# 
+#     # --- MODELO B: 1 Cuadrática + 1 Lineal ---
+#     popt_b, _ = curve_fit(cuadratica_neg, x2[:18], y2[:18]) # Una sola para todo
+#     
+#     def modelo_b(x):
+#         if x <= x_p9:
+#             return float(cuadratica_neg(x, *popt_b))
+#         else:
+#             pendiente = (0 - y_p9) / (20.0 - x_p9)
+#             return float(y_p9 + pendiente * (x - x_p9))
+# 
+#     # --- CÁLCULO DE ERRORES (Punto c.ii.3) ---
+#     # Evaluamos solo en los puntos dentro del puente (x <= 20)
+#     x_eval = x2[x2 <= 20]
+#     y_eval = y2[x2 <= 20]
+#     
+#     rmse_a = np.sqrt(mean_squared_error(y_eval, [modelo_a(xi) for xi in x_eval]))
+#     rmse_b = np.sqrt(mean_squared_error(y_eval, [modelo_b(xi) for xi in x_eval]))
+#     
+#     print(f"RMSE Modelo A (2 cuadráticas): {rmse_a:.4f}")
+#     print(f"RMSE Modelo B (1 cuadrática): {rmse_b:.4f}")
+# 
+#     # Elegimos el de menor error
+#     if rmse_a < rmse_b:
+#         print("Ganador: Modelo A")
+#         return modelo_a, x2, y2, x_p8, rmse_a, rmse_b
+#     else:
+#         print("Ganador: Modelo B")
+#         return modelo_b, x2, y2, x_p8, rmse_a, rmse_b
 
 def simpson_38_final(f, limite_b, h=1):
     n = int(limite_b / h) # n = 21 si limite_b es 21
